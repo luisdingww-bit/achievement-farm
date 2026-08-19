@@ -1,0 +1,47 @@
+name: Achievement Farm
+
+on:
+  schedule:
+    - cron: '30 16 * * *'   # 00:30 Beijing time (UTC+8)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  farm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "luisdingww-bit"
+          git config user.email "luisdingww-bit@users.noreply.github.com"
+
+      - name: Pull Shark + YOLO (branch -> PR -> merge without review)
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          TS=$(date +%Y%m%d-%H%M%S)
+          BR="farm/$TS"
+          git checkout -b "$BR"
+          echo "$TS" > farm_log.txt
+          git add farm_log.txt
+          git commit -m "chore(farm): entry $TS"
+          git push origin "$BR"
+          gh pr create --title "farm: $TS" --body "automated contribution" --head "$BR" --base main
+          gh pr merge "$BR" --merge --delete-branch
+
+      - name: Quickdraw (open + close issue fast)
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          ISSUE=$(gh issue create --title "chore: tick $(date +%s)" --body "automated" --repo luisdingww-bit/achievement-farm)
+          gh issue close "$ISSUE" --reason "not planned"
